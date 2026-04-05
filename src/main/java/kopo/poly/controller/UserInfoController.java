@@ -196,6 +196,32 @@ public class UserInfoController {
     }
 
     @ResponseBody
+    @GetMapping("sessionCheck")
+    public UserInfoDTO sessionCheck(HttpSession session) {
+
+        log.info("{}.sessionCheck Start!", this.getClass().getName());
+
+        String email = CmmUtil.nvl(
+                (String) session.getAttribute("SS_EMAIL")
+        );
+
+        if (!email.isEmpty()) {
+            log.info("{}.sessionCheck Yes!", this.getClass().getName());
+
+            return UserInfoDTO.builder()
+                    .email(email)
+                    .existYn("Y")
+                    .build();
+        }
+
+        log.info("{}.sessionCheck Null!", this.getClass().getName());
+
+        return UserInfoDTO.builder()
+                .existYn("N")
+                .build();
+    }
+
+    @ResponseBody
     @PostMapping(value = "logout")
     public MsgDTO logout(HttpSession session) {
 
