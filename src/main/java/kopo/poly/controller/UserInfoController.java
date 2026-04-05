@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import java.util.Optional;
 
 @Slf4j
-@RequestMapping(value = "/user")
+@RequestMapping(value = "/api/user")
 @RequiredArgsConstructor
 @Controller
 public class UserInfoController {
@@ -44,7 +44,7 @@ public class UserInfoController {
 
         log.info("email : {}", email);
 
-        UserInfoDTO pDTO = UserInfoDTO.builder().email(email).build();
+        UserInfoDTO pDTO = UserInfoDTO.builder().email(EncryptUtil.encAES128CBC(email)).build();
 
         UserInfoDTO rDTO = Optional.ofNullable(userInfoService.getUserEmailExists(pDTO))
                 .orElseGet(() -> UserInfoDTO.builder().build());
@@ -52,6 +52,71 @@ public class UserInfoController {
         log.info("{}.getEmailExists End!", this.getClass().getName());
 
         return rDTO;
+    }
+
+    @ResponseBody
+    @PostMapping("sendEmailAuthCode")
+    public MsgDTO sendEmailAuthCode(HttpServletRequest request,
+                                    HttpSession session) throws Exception {
+
+        log.info("{}.sendEmailAuthCode Start!", this.getClass().getName());
+
+        String msg;
+
+        String email = CmmUtil.nvl(request.getParameter("email"));
+
+        log.info("email : {}", email);
+
+        UserInfoDTO pDTO = UserInfoDTO.builder().email(EncryptUtil.encAES128CBC(email)).build();
+
+        int res = userInfoService.sendEmailAuthCode(pDTO, session);
+
+        if (res == 1) {
+            msg = "발송된 6자리 코드를 입력해주세요.";
+        } else {
+            msg = "오류로 인해 인증 메일이 발송되지 않았습니다.";
+        }
+
+        MsgDTO dto = MsgDTO.builder().result(res).msg(msg).build();
+
+        log.info("{}.sendEmailAuthCode End!", this.getClass().getName());
+
+        return dto;
+    }
+
+    @ResponseBody
+    @PostMapping("verifyEmailCode")
+    public MsgDTO verifyEmailCode(HttpServletRequest request,
+                                  HttpSession session) throws Exception {
+
+        log.info("{}.verifyEmailCode Start!", this.getClass().getName());
+
+        String inputCode  = CmmUtil.nvl(request.getParameter("code"));
+        String inputEmail = CmmUtil.nvl(request.getParameter("email"));
+
+        String savedCode  = CmmUtil.nvl((String) session.getAttribute("AUTH_NUMBER"));
+        String savedEmail = CmmUtil.nvl((String) session.getAttribute("AUTH_EMAIL"));
+
+        int res;
+        String msg;
+
+        if (!savedCode.isEmpty()
+                && savedCode.equals(inputCode)
+                && savedEmail.equals(inputEmail)) {
+            res = 1;
+            msg = "인증 성공";
+            session.removeAttribute("AUTH_NUMBER");
+            session.removeAttribute("AUTH_EMAIL");
+        } else {
+            res = 0;
+            msg = "인증번호가 올바르지 않습니다";
+        }
+
+        MsgDTO dto = MsgDTO.builder().result(res).msg(msg).build();
+
+        log.info("{}.verifyEmailCode End!", this.getClass().getName());
+
+        return dto;
     }
 
     @ResponseBody
@@ -72,9 +137,9 @@ public class UserInfoController {
 
         UserInfoDTO pDTO = UserInfoDTO.builder()
                 .userName(userName)
-                .email(email)
+                .email(EncryptUtil.encAES128CBC(email))
                 .phoneNum(phoneNum)
-                .password(password)
+                .password(EncryptUtil.encHashSHA256(password))
                 .build();
 
         int res = userInfoService.insertUserInfo(pDTO);
@@ -96,15 +161,6 @@ public class UserInfoController {
         return dto;
     }
 
-    @GetMapping(value = "login")
-    public String login() {
-        log.info("{}.user/login Start!", this.getClass().getName());
-
-        log.info("{}.user/login End!", this.getClass().getName());
-
-        return "user/login";
-    }
-
     @ResponseBody
     @PostMapping(value = "loginProc")
     public MsgDTO loginProc(HttpServletRequest request, HttpSession session) throws Exception {
@@ -119,7 +175,7 @@ public class UserInfoController {
         log.info("email : {}, password : {}", email, password);
 
         UserInfoDTO pDTO = UserInfoDTO.builder()
-                .email(email)
+                .email(EncryptUtil.encAES128CBC(email))
                 .password(EncryptUtil.encHashSHA256(password)).build();
 
         int res = userInfoService.getUserLogin(pDTO);
@@ -137,15 +193,6 @@ public class UserInfoController {
         log.info("{}.loginProc End!", this.getClass().getName());
 
         return dto;
-    }
-
-    @GetMapping(value = "loginSuccess")
-    public String loginSuccess() {
-        log.info("{}.user/loginSuccess Start!", this.getClass().getName());
-
-        log.info("{}.user/loginSuccess End!", this.getClass().getName());
-
-        return "user/loginSuccess";
     }
 
     @ResponseBody

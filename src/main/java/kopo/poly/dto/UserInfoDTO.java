@@ -23,6 +23,8 @@ public record UserInfoDTO(
 
         String existYn, // 이메일 존재여부
 
-        String roles // 회원 권한
+        String roles, // 회원 권한
+
+        int authNumber // 이메일 중복체크를 위한 인증번호
 ) {
 }
