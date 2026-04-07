@@ -8,7 +8,6 @@ import kopo.poly.repository.entity.UserInfoEntity;
 import kopo.poly.service.IMailService;
 import kopo.poly.service.IUserInfoService;
 import kopo.poly.util.CmmUtil;
-import kopo.poly.util.DateUtil;
 import kopo.poly.util.EncryptUtil;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -49,7 +48,8 @@ public class UserInfoService implements IUserInfoService {
     }
 
     @Override
-    public int sendEmailAuthCode(UserInfoDTO pDTO, HttpSession session) throws Exception {
+    public int sendEmailAuthCode(@NonNull UserInfoDTO pDTO,
+                                 HttpSession session) throws Exception {
         log.info("{}.sendEmailAuthCode Start!", this.getClass().getName());
 
         int res = 0;
@@ -131,5 +131,36 @@ public class UserInfoService implements IUserInfoService {
         log.info("{}.getUserLoginCheck End!", this.getClass().getName());
 
         return res ? 1 : 0;
+    }
+
+    @Override
+    public UserInfoDTO searchUserEmail(@NonNull UserInfoDTO pDTO) throws Exception {
+
+        log.info("{}.searchUserEmail Start!", this.getClass().getName());
+
+        String userName = CmmUtil.nvl(pDTO.userName());
+        String phoneNum = CmmUtil.nvl(pDTO.phoneNum());
+
+        log.info("userName : {}, phoneNum : {}", userName, phoneNum);
+
+        Optional<UserInfoEntity> rEntity = userInfoRepository.findByUserNameAndPhoneNum(userName, phoneNum);
+
+        UserInfoDTO rDTO = null;
+
+        if (rEntity.isPresent()) {
+            UserInfoEntity entity = rEntity.get();
+
+            String email = EncryptUtil.decAES128CBC(entity.getEmail());
+
+            rDTO = UserInfoDTO.builder()
+                    .userName(entity.getUserName())
+                    .phoneNum(entity.getPhoneNum())
+                    .email(email)
+                    .build();
+        }
+
+        log.info("{}.searchUserEmail End!", this.getClass().getName());
+
+        return rDTO;
     }
 }

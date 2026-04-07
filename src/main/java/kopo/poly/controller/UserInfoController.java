@@ -25,15 +25,6 @@ public class UserInfoController {
 
     private final IUserInfoService userInfoService;
 
-    @GetMapping(value = "userRegForm")
-    public String userRegForm() {
-        log.info("{}.user/userRegForm Start!", this.getClass().getName());
-
-        log.info("{}.user/userRegForm End!", this.getClass().getName());
-
-        return "user/userRegForm";
-    }
-
     @ResponseBody
     @PostMapping(value = "getEmailExists")
     public UserInfoDTO getUserExist(HttpServletRequest request) throws Exception {
@@ -223,7 +214,7 @@ public class UserInfoController {
 
     @ResponseBody
     @PostMapping(value = "logout")
-    public MsgDTO logout(HttpSession session) {
+    public MsgDTO logout(HttpSession session){
 
         log.info("{}.logout Start!", this.getClass().getName());
 
@@ -235,5 +226,27 @@ public class UserInfoController {
         log.info("{}.logout End!", this.getClass().getName());
 
         return dto;
+    }
+
+    @ResponseBody
+    @PostMapping(value = "searchUserEmail")
+    public UserInfoDTO searchUserEmail(HttpServletRequest request) throws Exception{
+
+        log.info("{}.searchUserId Start!", this.getClass().getName());
+
+        String userName = CmmUtil.nvl(request.getParameter("userName"));
+        String phoneNum = CmmUtil.nvl(request.getParameter("phoneNum"));
+
+        UserInfoDTO pDTO = UserInfoDTO.builder()
+                .userName(userName)
+                .phoneNum(phoneNum)
+                .build();
+
+        UserInfoDTO rDTO = Optional.ofNullable(userInfoService.searchUserEmail(pDTO))
+                .orElseGet(() -> UserInfoDTO.builder().build());
+
+        log.info("{}.searchUserId End!", this.getClass().getName());
+
+        return rDTO;
     }
 }
