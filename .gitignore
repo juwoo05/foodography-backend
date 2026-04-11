@@ -41,4 +41,4 @@ application-secret.yml
 application-secret.properties
 
 # React 빌드 결과물 무시
-src/main/resources/static/
+**/src/main/resources/static/**
