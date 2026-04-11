@@ -39,3 +39,6 @@ out/
 ### 개인 보안 설정 ###
 application-secret.yml
 application-secret.properties
+
+# React 빌드 결과물 무시
+src/main/resources/static/
