@@ -9,6 +9,8 @@ public interface IUserInfoService {
 
     UserInfoDTO searchUserEmail(UserInfoDTO pDTO) throws Exception;
 
+    int updatePassword(UserInfoDTO pDTO) throws Exception;
+
     int sendEmailAuthCode(UserInfoDTO pDTO, HttpSession session) throws Exception;
 
     int insertUserInfo(UserInfoDTO pDTO) throws Exception;

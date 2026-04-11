@@ -41,4 +41,11 @@ public class UserInfoEntity {
 
     @Column(name = "REG_DT", updatable = false, columnDefinition = "DATETIME DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime regDt;
+
+    public void updatePassword(String newPassword) {
+        if (newPassword == null || newPassword.isBlank()) {
+            throw new IllegalArgumentException("비밀번호는 빈 값일 수 없습니다.");
+        }
+        this.password = newPassword;
+    }
 }

@@ -249,4 +249,37 @@ public class UserInfoController {
 
         return rDTO;
     }
+
+    @ResponseBody
+    @PostMapping("updatePassword")
+    public MsgDTO updatePassword(HttpServletRequest request) throws Exception {
+
+        log.info("{}.updatePassword Start!", this.getClass().getName());
+
+        String msg;
+
+        String email    = CmmUtil.nvl(request.getParameter("email"));
+        String password = CmmUtil.nvl(request.getParameter("password"));
+
+        log.info("updatePassword email : {}", email);
+
+        UserInfoDTO pDTO = UserInfoDTO.builder()
+                .email(EncryptUtil.encAES128CBC(email))        // DB 조회용 암호화
+                .password(EncryptUtil.encHashSHA256(password)) // 비밀번호 해시
+                .build();
+
+        int res = userInfoService.updatePassword(pDTO);
+
+        if (res == 1) {
+            msg = "비밀번호가 성공적으로 변경되었습니다.";
+        } else if (res == 2) {
+            msg = "새 비밀번호가 기존 비밀번호와 동일합니다. 다른 비밀번호를 입력해주세요.";
+        } else {
+            msg = "오류로 인해 비밀번호 변경에 실패했습니다.";
+        }
+
+        log.info("{}.updatePassword End!", this.getClass().getName());
+
+        return MsgDTO.builder().result(res).msg(msg).build();
+    }
 }

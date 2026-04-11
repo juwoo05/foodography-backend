@@ -1,6 +1,7 @@
 package kopo.poly.service.impl;
 
 import jakarta.servlet.http.HttpSession;
+import jakarta.transaction.Transactional;
 import kopo.poly.dto.MailDTO;
 import kopo.poly.dto.UserInfoDTO;
 import kopo.poly.repository.UserInfoRepository;
@@ -162,5 +163,46 @@ public class UserInfoService implements IUserInfoService {
         log.info("{}.searchUserEmail End!", this.getClass().getName());
 
         return rDTO;
+    }
+
+    @Override
+    @Transactional
+    public int updatePassword(@NonNull UserInfoDTO pDTO) throws Exception {
+
+        log.info("{}.updatePassword Start!", this.getClass().getName());
+
+        int res = 0;
+
+        String email = CmmUtil.nvl(pDTO.email());
+        String password = CmmUtil.nvl(pDTO.password());
+
+        Optional<UserInfoEntity> rEntity = userInfoRepository.findByEmail(email);
+
+        if (rEntity.isPresent()) {
+
+            UserInfoEntity entity = rEntity.get();
+
+            if (entity.getPassword().equals(password)) {
+
+                res = 2;
+                log.info("비밀번호 변경 실패: 이전 비밀번호와 동일함");
+
+            } else {
+
+                entity.updatePassword(password);
+
+                res = 1;
+                log.info("비밀번호 변경 성공: {}", password);
+
+            }
+
+        } else {
+            // 사용자가 존재하지 않는 경우
+            log.info("비밀번호 변경 실패: 존재하지 않는 이메일 ({})", email);
+        }
+
+        log.info("{}.updatePassword End!", this.getClass().getName());
+
+        return res;
     }
 }
