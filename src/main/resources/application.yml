@@ -31,3 +31,12 @@ spring:
       hibernate:
         format_sql: true
         use_sql_comments: true
+
+  cloud:
+    aws:
+      s3:
+        bucket: my-fridge-415851145587-input
+      region:
+        static: ap-northeast-2
+      stack:
+        auto: false
