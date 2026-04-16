@@ -1,6 +1,6 @@
 package kopo.poly.dto;
 
-public record PresignedUrlResponse(
+public record PresignedUrlDTO(
 
         String url,
 

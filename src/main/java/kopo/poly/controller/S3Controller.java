@@ -1,12 +1,14 @@
 package kopo.poly.controller;
 
-import kopo.poly.dto.PresignedUrlResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import kopo.poly.dto.PresignedUrlDTO;
 import kopo.poly.service.IS3Service;
+import kopo.poly.util.CmmUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
@@ -21,15 +23,20 @@ public class S3Controller {
         this.s3Service = s3Service;
     }
 
+    @ResponseBody
     @GetMapping("/my-fridge-input")
-    public ResponseEntity<PresignedUrlResponse> getPresignedUrl(@RequestParam String filename) {
+    public ResponseEntity<PresignedUrlDTO> getPresignedUrl(HttpServletRequest request) {
 
         log.info("{}.getPresignedUrl Start!", this.getClass().getName());
 
-        PresignedUrlResponse response = s3Service.getPresignedUrl(filename);
+        String filename = CmmUtil.nvl(request.getParameter("filename"));
+
+        PresignedUrlDTO rDTO = s3Service.getPresignedUrl(filename);
+
+        log.info("presignedUrl: {}", rDTO);
 
         log.info("{}.getPresignedUrl End!", this.getClass().getName());
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(rDTO);
     }
 }

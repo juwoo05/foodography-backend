@@ -1,7 +1,7 @@
 package kopo.poly.service;
 
-import kopo.poly.dto.PresignedUrlResponse;
+import kopo.poly.dto.PresignedUrlDTO;
 
 public interface IS3Service {
-    PresignedUrlResponse getPresignedUrl(String originalFilename);
+    PresignedUrlDTO getPresignedUrl(String originalFilename);
 }

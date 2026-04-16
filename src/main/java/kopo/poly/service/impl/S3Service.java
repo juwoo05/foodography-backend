@@ -1,6 +1,6 @@
 package kopo.poly.service.impl;
 
-import kopo.poly.dto.PresignedUrlResponse;
+import kopo.poly.dto.PresignedUrlDTO;
 import kopo.poly.service.IS3Service;
 import kopo.poly.util.S3Util;
 // import com.example.project.repository.ImageRepository; // DB 저장 필요 시 활성화
@@ -19,7 +19,7 @@ public class S3Service implements IS3Service {
     }
 
     @Override
-    public PresignedUrlResponse getPresignedUrl(String originalFilename) {
+    public PresignedUrlDTO getPresignedUrl(String originalFilename) {
 
         log.info("{}.getPresignedUrl Start!", this.getClass().getName());
 
@@ -36,6 +36,6 @@ public class S3Service implements IS3Service {
         log.info("{}.getPresignedUrl End!", this.getClass().getName());
 
         // 4. Record DTO로 응답 반환
-        return new PresignedUrlResponse(url, savedFilename);
+        return new PresignedUrlDTO(url, savedFilename);
     }
 }
