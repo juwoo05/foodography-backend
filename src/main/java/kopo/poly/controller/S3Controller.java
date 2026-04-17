@@ -25,17 +25,35 @@ public class S3Controller {
 
     @ResponseBody
     @GetMapping("/my-fridge-input")
-    public ResponseEntity<PresignedUrlDTO> getPresignedUrl(HttpServletRequest request) {
+    public ResponseEntity<PresignedUrlDTO> getPresignedUrlToUpload(HttpServletRequest request) {
 
         log.info("{}.getPresignedUrl Start!", this.getClass().getName());
 
         String filename = CmmUtil.nvl(request.getParameter("filename"));
 
-        PresignedUrlDTO rDTO = s3Service.getPresignedUrl(filename);
+        PresignedUrlDTO rDTO = s3Service.getPresignedUrlToUpload(filename);
 
-        log.info("presignedUrl: {}", rDTO);
+        log.info("presignedUrlToUpload: {}", rDTO);
 
         log.info("{}.getPresignedUrl End!", this.getClass().getName());
+
+        return ResponseEntity.ok(rDTO);
+    }
+
+    @ResponseBody
+    @GetMapping("/my-fridge-download")
+    public ResponseEntity<PresignedUrlDTO> getPresignedUrlToDownload(HttpServletRequest request) {
+
+        log.info("{}.getPresignedUrlToDownload Start!", this.getClass().getName());
+
+        // DB에서 가져온 savedFilename을 파라미터로 받음
+        String savedFilename = CmmUtil.nvl(request.getParameter("filename"));
+
+        PresignedUrlDTO rDTO = s3Service.getPresignedUrlToDownload(savedFilename);
+
+        log.info("PresignedUrlToDownload: {}", rDTO);
+
+        log.info("{}.getPresignedUrlToDownload End!", this.getClass().getName());
 
         return ResponseEntity.ok(rDTO);
     }

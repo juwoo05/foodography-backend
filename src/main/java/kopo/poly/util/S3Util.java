@@ -5,6 +5,8 @@ import org.springframework.stereotype.Component;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
 import java.time.Duration;
 import java.util.UUID;
@@ -35,7 +37,7 @@ public class S3Util {
     /**
      * S3 업로드용 Presigned URL 생성
      */
-    public String generatePresignedUrl(String savedFilename) {
+    public String generatePresignedUrlToUpload(String savedFilename) {
         // 업로드 요청 설정
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                 .bucket(bucket)
@@ -50,5 +52,20 @@ public class S3Util {
 
         // URL 생성 및 반환
         return s3Presigner.presignPutObject(presignRequest).url().toString();
+    }
+
+    public String generatePresignedUrlToDownload(String savedFilename) {
+
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                .bucket(bucket)
+                .key(savedFilename)
+                .build();
+
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(2))
+                .getObjectRequest(getObjectRequest)
+                .build();
+
+        return s3Presigner.presignGetObject(presignRequest).url().toString();
     }
 }

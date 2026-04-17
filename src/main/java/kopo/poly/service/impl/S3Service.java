@@ -19,7 +19,7 @@ public class S3Service implements IS3Service {
     }
 
     @Override
-    public PresignedUrlDTO getPresignedUrl(String originalFilename) {
+    public PresignedUrlDTO getPresignedUrlToUpload(String originalFilename) {
 
         log.info("{}.getPresignedUrl Start!", this.getClass().getName());
 
@@ -27,7 +27,7 @@ public class S3Service implements IS3Service {
         String savedFilename = s3Util.createSavedFilename(originalFilename);
 
         // 2. Presigned URL 발급 로직 호출 (Util)
-        String url = s3Util.generatePresignedUrl(savedFilename);
+        String url = s3Util.generatePresignedUrlToUpload(savedFilename);
 
         // [선택사항] 3. Repository를 통해 DB에 파일 정보 사전 저장 (예: 상태를 '업로드 대기'로 저장)
         // ImageEntity entity = new ImageEntity(savedFilename, originalFilename, "PENDING");
@@ -36,6 +36,18 @@ public class S3Service implements IS3Service {
         log.info("{}.getPresignedUrl End!", this.getClass().getName());
 
         // 4. Record DTO로 응답 반환
+        return new PresignedUrlDTO(url, savedFilename);
+    }
+
+    @Override
+    public PresignedUrlDTO getPresignedUrlToDownload(String savedFilename) {
+
+        log.info("{}.getDownloadPresignedUrl Start!", this.getClass().getName());
+
+        String url = s3Util.generatePresignedUrlToDownload(savedFilename);
+
+        log.info("{}.getDownloadPresignedUrl End!", this.getClass().getName());
+
         return new PresignedUrlDTO(url, savedFilename);
     }
 }
