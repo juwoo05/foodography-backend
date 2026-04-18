@@ -1,6 +1,7 @@
 package kopo.poly.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 /**
@@ -49,7 +50,25 @@ public record AnalysisResultDTO(
             String quantity,
 
             // 특이사항 (없으면 null)
-            String note
+            String note,
 
+            // Roboflow 세그멘테이션 폴리곤 좌표 목록
+            // FastAPI가 [{"x": 120.0, "y": 45.0}, ...] 형태로 전달
+            List<PolygonPointDTO> polygon,
+
+            // Gemini 재고 상태 텍스트 (많음 / 보통 / 적음)
+            // FastAPI 필드명이 stock_status이므로 @JsonProperty로 매핑
+            @JsonProperty("stock_status")
+            String stockStatus
+
+    ) {}
+
+    /**
+     * 폴리곤 꼭짓점 좌표 — Roboflow 원본 픽셀 기준
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record PolygonPointDTO(
+            double x,
+            double y
     ) {}
 }
