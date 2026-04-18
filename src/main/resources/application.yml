@@ -40,3 +40,11 @@ spring:
         static: ap-northeast-2
       stack:
         auto: false
+
+  webflux:
+    # WebClient는 MVC와 공존 — 서버 활성화 X, Bean 생성 용도만
+    codec:
+      max-in-memory-size: 10MB
+
+fastapi:
+  base-url: http://localhost:8000  # 로컬 기본값, 운영은 secret에서 덮어씀
