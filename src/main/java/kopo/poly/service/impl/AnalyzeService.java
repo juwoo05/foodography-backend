@@ -66,6 +66,15 @@ public class AnalyzeService implements IAnalyzeService {
                     .timeout(ANALYZE_TIMEOUT)
                     .block();  // 동기 방식 — 타임아웃 90초
 
+            if (result != null && result.success()) {
+                log.info("FastAPI 응답 수신 detectedCount={} ingredientCount={}",
+                        result.detectedCount(),
+                        result.ingredients() != null ? result.ingredients().size() : 0);
+            } else {
+                log.warn("FastAPI 분석 실패 응답 errorMessage={}",
+                        result != null ? result.errorMessage() : "null");
+            }
+
         } catch (WebClientResponseException e) {
             log.error("FastAPI 호출 실패: status={}, body={}", e.getStatusCode(), e.getResponseBodyAsString());
             result = new AnalysisResultDTO(false, 0, null, "FastAPI 통신 오류: " + e.getMessage());
