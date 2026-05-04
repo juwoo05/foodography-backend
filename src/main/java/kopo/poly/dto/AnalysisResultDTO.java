@@ -21,7 +21,10 @@ public record AnalysisResultDTO(
         List<IngredientDTO> ingredients,
 
         // 오류 발생 시 메시지
-        String errorMessage
+        String errorMessage,
+
+        // FOOD_BEFORE / FOOD_AFTER 연결 키 (UUID, 분석 성공 시 서버에서 생성)
+        String scanId
 
 ) {
 
