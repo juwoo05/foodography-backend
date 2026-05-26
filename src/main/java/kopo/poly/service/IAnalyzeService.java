@@ -2,6 +2,7 @@ package kopo.poly.service;
 
 import kopo.poly.dto.AnalysisResultDTO;
 import kopo.poly.dto.RecipeDTO;
+import kopo.poly.dto.VideoSummaryDTO;
 
 import java.util.List;
 
@@ -23,4 +24,13 @@ public interface IAnalyzeService {
 
     /** FOOD_AFTER 컬렉션에서 특정 scanId의 식재료명 목록 조회 */
     List<RecipeDTO> analyzeRecipes(String scanId) throws Exception;
+
+    /**
+     * 사용자가 레시피 선택 후 호출 — YouTube URL → Gemini 영상 분석 → 구조화된 조리 단계 목록
+     *
+     * @param youtubeUrl 분석할 YouTube 영상 URL
+     * @param scanId     현재 분석 세션 ID (로깅용)
+     * @return 조리 단계 목록 (VideoSummaryDTO 리스트)
+     */
+    List<VideoSummaryDTO> getVideoSummary(String youtubeUrl, String scanId) throws Exception;
 }

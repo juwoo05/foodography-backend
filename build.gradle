@@ -22,22 +22,49 @@ configurations {
 
 repositories {
     mavenCentral()
+    // Spring AI 1.0.0 GA → Maven Central 에 존재
+    // snapshot/milestone 은 pre-release 용 — 안정 버전은 아래만으로 충분
+    maven { url 'https://repo.spring.io/milestone' }
 }
 
 dependencies {
+    // ── 기본 스프링 부트 스타터 ────────────────────────────────────────────────
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
     implementation 'org.springframework.boot:spring-boot-starter-mail'
+
+    // ── 롬복 및 개발 툴 ──────────────────────────────────────────────────────
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
-    runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
     annotationProcessor 'org.projectlombok:lombok'
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // ── 데이터베이스 (MariaDB + MongoDB) ──────────────────────────────────────
+    runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
+    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+
+    // ── Redis + Cache ────────────────────────────────────────────────────────
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.boot:spring-boot-starter-cache'
+    implementation 'org.apache.commons:commons-pool2'  // Lettuce 커넥션 풀용
+
+    // ── [핵심] AWS SDK v2 버전 정렬 관리 ─────────────────────────────────────
+    // Spring AI가 사용하는 2.31.x 버전과 S3 모듈 버전을 강제로 통일하여 꼬임을 방지합니다.
+    implementation platform('software.amazon.awssdk:bom:2.31.26')
+
+    // ── AWS Cloud (S3) ───────────────────────────────────────────────────────
     implementation platform("io.awspring.cloud:spring-cloud-aws-dependencies:3.0.0")
     implementation 'io.awspring.cloud:spring-cloud-aws-starter-s3'
-    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+
+    // ── Spring AI (Bedrock & Vector Store) ───────────────────────────────────
+    implementation platform('org.springframework.ai:spring-ai-bom:1.0.0')
+    implementation 'org.springframework.ai:spring-ai-starter-model-bedrock'          // Titan Embedding용
+    implementation 'org.springframework.ai:spring-ai-starter-model-bedrock-converse' // Claude Sonnet용
+    implementation 'org.springframework.ai:spring-ai-starter-vector-store-pinecone'  // Pinecone 벡터 DB용
+
+    // ── 테스트 ───────────────────────────────────────────────────────────────
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 tasks.named('test') {

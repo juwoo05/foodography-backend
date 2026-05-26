@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Collections;
 import java.util.List;
 
 @Slf4j
@@ -34,7 +35,6 @@ public class AnalyzeController {
 
         log.info("{}.analyzeImage Start!", this.getClass().getName());
 
-        // S3 저장 키 (업로드 완료 후 React가 보관하고 있던 값)
         String savedFilename = CmmUtil.nvl(request.getParameter("filename"));
 
         log.info("분석 요청 파일: {}", savedFilename);
@@ -64,7 +64,7 @@ public class AnalyzeController {
     /**
      * 사용자 수정 결과 저장
      *
-     * React → POST /api/analyze/after  (body: 수정된 AnalysisResultDTO, scanId 포함)
+     * React → POST /api/analyze/reviewed (body: 수정된 AnalysisResultDTO, scanId 포함)
      * Spring → MongoDB FOOD_AFTER 컬렉션 저장
      */
     @PostMapping("/analyze/reviewed")
@@ -90,10 +90,10 @@ public class AnalyzeController {
      * 레시피 분석 요청
      *
      * React → POST /api/analyze/recipe?scanId=xxx
-     * Spring → FOOD_AFTER 식재료 조회 → FastAPI 레시피 분석 → 결과 반환
+     * Spring → FOOD_AFTER 식재료 조회 → FastAPI 레시피 분석 → RecipeListDTO 반환
      */
     @PostMapping("/analyze/recipe")
-    public ResponseEntity<List<RecipeDTO>> analyzeRecipe(HttpServletRequest request) {
+    public ResponseEntity<RecipeListDTO> analyzeRecipe(HttpServletRequest request) {
 
         log.info("{}.analyzeRecipe Start!", this.getClass().getName());
 
@@ -101,17 +101,60 @@ public class AnalyzeController {
 
         if (scanId.isEmpty()) {
             log.warn("scanId 파라미터가 비어있음");
-            return ResponseEntity.badRequest().body(List.of());
+            return ResponseEntity.badRequest()
+                    .body(RecipeListDTO.builder().recipes(List.of()).build());
         }
 
         try {
             List<RecipeDTO> rList = analyzeService.analyzeRecipes(scanId);
             log.info("{}.analyzeRecipe End! count={}", this.getClass().getName(), rList.size());
-            return ResponseEntity.ok(rList);
+            return ResponseEntity.ok(
+                    RecipeListDTO.builder().recipes(rList).build()
+            );
 
         } catch (Exception e) {
             log.error("레시피 분석 실패: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError().body(List.of());
+            return ResponseEntity.internalServerError()
+                    .body(RecipeListDTO.builder().recipes(List.of()).build());
+        }
+    }
+
+    /**
+     * 사용자가 레시피 선택 후 영상 요약 요청
+     *
+     * React → POST /api/analyze/recipe/video-summary?youtube_url=...&scanId=...
+     * Spring → FastAPI POST /api/v1/recipes/video-summary
+     * FastAPI → Gemini 영상 직접 분석 → List<VideoSummaryDTO> 반환
+     */
+    @PostMapping("/analyze/recipe/video-summary")
+    public ResponseEntity<List<VideoSummaryDTO>> getVideoSummary(HttpServletRequest request) {
+
+        log.info("{}.getVideoSummary Start!", this.getClass().getName());
+
+        String youtubeUrl = CmmUtil.nvl(request.getParameter("youtube_url"));
+        String scanId     = CmmUtil.nvl(request.getParameter("scanId"));
+
+        if (youtubeUrl.isEmpty()) {
+            log.warn("youtube_url 파라미터가 비어있음");
+            return ResponseEntity.badRequest().body(Collections.emptyList());
+        }
+
+        try {
+            List<VideoSummaryDTO> rList = analyzeService.getVideoSummary(youtubeUrl, scanId);
+
+            log.info("{}.getVideoSummary End! scanId={} steps={}", this.getClass().getName(), scanId, rList.size());
+            for (int i = 0; i < rList.size(); i++) {
+                VideoSummaryDTO s = rList.get(i);
+                log.info("  [step {}] {} ({}) | {}s ~ {}s | {}",
+                        i + 1, s.stepName(), s.displayTime(),
+                        s.startSeconds(), s.endSeconds(), s.description());
+            }
+
+            return ResponseEntity.ok(rList);
+
+        } catch (Exception e) {
+            log.error("영상 요약 실패: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(Collections.emptyList());
         }
     }
 }

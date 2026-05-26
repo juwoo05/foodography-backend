@@ -2,6 +2,7 @@ package kopo.poly.service.impl;
 
 import kopo.poly.dto.AnalysisResultDTO;
 import kopo.poly.dto.RecipeDTO;
+import kopo.poly.dto.VideoSummaryDTO;
 import kopo.poly.persistance.mongodb.IAnalysisResultMapper;
 import kopo.poly.service.IAnalyzeService;
 import kopo.poly.util.S3Util;
@@ -33,8 +34,12 @@ public class AnalyzeService implements IAnalyzeService {
     @Value("${fastapi.base-url}")
     private String fastapiBaseUrl;
 
-    // FastAPI 분석 응답 대기 타임아웃 (VLM 처리 시간 고려 90초)
-    private static final Duration ANALYZE_TIMEOUT = Duration.ofSeconds(90);
+    // FastAPI 분석 응답 대기 타임아웃
+    // - 이미지 분석(VLM)       : ~30초
+    // - 레시피 분석(자막 기반)  : Agent(35s) + (yt-dlp+Gemini텍스트)×3(~10s×3) = ~65s → 여유 120초
+    // - 영상 요약(Gemini 직접) : 단일 영상 Gemini 분석 → 여유 90초
+    private static final Duration ANALYZE_TIMEOUT       = Duration.ofSeconds(120);
+    private static final Duration VIDEO_SUMMARY_TIMEOUT = Duration.ofSeconds(90);
 
     @Override
     public AnalysisResultDTO analyzeImage(String savedFilename) {
@@ -171,6 +176,46 @@ public class AnalyzeService implements IAnalyzeService {
 
         List<RecipeDTO> result = rList != null ? rList : List.of();
         log.info("{}.analyzeRecipes End! count={}", this.getClass().getName(), result.size());
+
+        return result;
+    }
+
+    @Override
+    public List<VideoSummaryDTO> getVideoSummary(String youtubeUrl, String scanId) throws Exception {
+
+        log.info("{}.getVideoSummary Start! scanId={} youtubeUrl={}", this.getClass().getName(), scanId, youtubeUrl);
+
+        Map<String, String> requestBody = Map.of(
+                "youtube_url", youtubeUrl,
+                "scan_id",     scanId
+        );
+
+        List<VideoSummaryDTO> steps;
+        try {
+            steps = webClient.post()
+                    .uri(fastapiBaseUrl + "/api/v1/recipes/video-summary")
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .onStatus(status -> status.is4xxClientError(), response ->
+                            response.bodyToMono(String.class)
+                                    .flatMap(body -> Mono.error(
+                                            new IllegalArgumentException("FastAPI 영상 요약 요청 오류: " + body))))
+                    .onStatus(status -> status.is5xxServerError(), response ->
+                            response.bodyToMono(String.class)
+                                    .flatMap(body -> Mono.error(
+                                            new RuntimeException("FastAPI 영상 요약 서버 오류: " + body))))
+                    .bodyToMono(new ParameterizedTypeReference<List<VideoSummaryDTO>>() {})
+                    .timeout(VIDEO_SUMMARY_TIMEOUT)
+                    .block();
+
+        } catch (Exception e) {
+            log.error("FastAPI 영상 요약 호출 실패 | scanId={} error={}", scanId, e.getMessage());
+            throw e;
+        }
+
+        List<VideoSummaryDTO> result = steps != null ? steps : List.of();
+
+        log.info("{}.getVideoSummary End! scanId={} steps={}", this.getClass().getName(), scanId, result.size());
 
         return result;
     }

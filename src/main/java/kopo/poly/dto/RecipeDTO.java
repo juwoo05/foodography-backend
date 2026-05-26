@@ -27,6 +27,11 @@ public record RecipeDTO(
 
         String youtube_url_thumbnail,
 
-        String scanId
+        String scanId,
+
+        List<String> additional_ingredients,
+
+        List<VideoSummaryDTO> recipe_video_summary
+
 ) {
 }
