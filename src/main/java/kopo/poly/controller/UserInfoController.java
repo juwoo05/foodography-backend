@@ -1,14 +1,24 @@
 package kopo.poly.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletResponse;
+import kopo.poly.auth.AuthInfo;
+
 import kopo.poly.dto.MsgDTO;
 import kopo.poly.dto.UserInfoDTO;
+import kopo.poly.service.IJwtTokenService;
 import kopo.poly.service.IUserInfoService;
 import kopo.poly.util.CmmUtil;
 import kopo.poly.util.EncryptUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,6 +34,8 @@ import java.util.Optional;
 public class UserInfoController {
 
     private final IUserInfoService userInfoService;
+    private final AuthenticationManager authenticationManager;
+    private final IJwtTokenService jwtTokenService;
 
     @ResponseBody
     @PostMapping(value = "getEmailExists")
@@ -47,12 +59,9 @@ public class UserInfoController {
 
     @ResponseBody
     @PostMapping("sendEmailAuthCode")
-    public MsgDTO sendEmailAuthCode(HttpServletRequest request,
-                                    HttpSession session) throws Exception {
+    public MsgDTO sendEmailAuthCode(HttpServletRequest request) throws Exception {
 
         log.info("{}.sendEmailAuthCode Start!", this.getClass().getName());
-
-        String msg;
 
         String email = CmmUtil.nvl(request.getParameter("email"));
 
@@ -60,54 +69,31 @@ public class UserInfoController {
 
         UserInfoDTO pDTO = UserInfoDTO.builder().email(EncryptUtil.encAES128CBC(email)).build();
 
-        int res = userInfoService.sendEmailAuthCode(pDTO, session);
+        int res = userInfoService.sendEmailAuthCode(pDTO);    // HttpSession 제거
 
-        if (res == 1) {
-            msg = "발송된 6자리 코드를 입력해주세요.";
-        } else {
-            msg = "오류로 인해 인증 메일이 발송되지 않았습니다.";
-        }
-
-        MsgDTO dto = MsgDTO.builder().result(res).msg(msg).build();
+        String msg = (res == 1) ? "발송된 6자리 코드를 입력해주세요." : "오류로 인해 인증 메일이 발송되지 않았습니다.";
 
         log.info("{}.sendEmailAuthCode End!", this.getClass().getName());
 
-        return dto;
+        return MsgDTO.builder().result(res).msg(msg).build();
     }
 
     @ResponseBody
     @PostMapping("verifyEmailCode")
-    public MsgDTO verifyEmailCode(HttpServletRequest request,
-                                  HttpSession session) throws Exception {
+    public MsgDTO verifyEmailCode(HttpServletRequest request) {
 
         log.info("{}.verifyEmailCode Start!", this.getClass().getName());
 
         String inputCode  = CmmUtil.nvl(request.getParameter("code"));
         String inputEmail = CmmUtil.nvl(request.getParameter("email"));
 
-        String savedCode  = CmmUtil.nvl((String) session.getAttribute("AUTH_NUMBER"));
-        String savedEmail = CmmUtil.nvl((String) session.getAttribute("AUTH_EMAIL"));
-
-        int res;
-        String msg;
-
-        if (!savedCode.isEmpty()
-                && savedCode.equals(inputCode)
-                && savedEmail.equals(inputEmail)) {
-            res = 1;
-            msg = "인증 성공";
-            session.removeAttribute("AUTH_NUMBER");
-            session.removeAttribute("AUTH_EMAIL");
-        } else {
-            res = 0;
-            msg = "인증번호가 올바르지 않습니다";
-        }
-
-        MsgDTO dto = MsgDTO.builder().result(res).msg(msg).build();
+        // 비즈니스 로직(Redis 조회·비교·삭제)은 서비스 계층에서 처리
+        int    res = userInfoService.verifyEmailCode(inputEmail, inputCode);
+        String msg = (res == 1) ? "인증 성공" : "인증번호가 올바르지 않습니다";
 
         log.info("{}.verifyEmailCode End!", this.getClass().getName());
 
-        return dto;
+        return MsgDTO.builder().result(res).msg(msg).build();
     }
 
     @ResponseBody
@@ -152,81 +138,80 @@ public class UserInfoController {
         return dto;
     }
 
+    /**
+     * 로그인 — Spring Security AuthenticationManager 를 통한 인증 후 JWT 쿠키 발급
+     *
+     * 흐름:
+     *   1. authenticationManager.authenticate() 호출
+     *   2. 내부에서 UserDetailsService.loadUserByUsername(encryptedEmail) 호출
+     *   3. PasswordEncoder.matches(plainPw, sha256Hash) 비교
+     *   4. 성공 시 principal(AuthInfo) 에서 UserInfoDTO 추출 → JWT 쿠키 발급
+     */
     @ResponseBody
     @PostMapping(value = "loginProc")
-    public MsgDTO loginProc(HttpServletRequest request, HttpSession session) throws Exception {
+    public MsgDTO loginProc(HttpServletRequest request, HttpServletResponse response) throws Exception {
 
         log.info("{}.loginProc Start!", this.getClass().getName());
 
-        String msg;
-
-        String email = CmmUtil.nvl(request.getParameter("email"));
+        String email    = CmmUtil.nvl(request.getParameter("email"));
         String password = CmmUtil.nvl(request.getParameter("password"));
 
-        log.info("email : {}, password : {}", email, password);
+        log.info("email : {}", email);
 
-        UserInfoDTO pDTO = UserInfoDTO.builder()
-                .email(EncryptUtil.encAES128CBC(email))
-                .password(EncryptUtil.encHashSHA256(password)).build();
+        try {
+            // AES-128 암호화 이메일 = DB 저장 키와 동일한 형태로 전달
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            EncryptUtil.encAES128CBC(email),
+                            password   // 평문 — PasswordEncoder.matches() 에서 SHA-256 비교
+                    )
+            );
 
-        int res = userInfoService.getUserLogin(pDTO);
+            // 인증 성공 → JWT 쿠키 발급
+            AuthInfo authInfo = (AuthInfo) authentication.getPrincipal();
+            jwtTokenService.issueTokens(authInfo.userInfoDTO(), response);
 
-        log.info("res : {}", res);
+            log.info("{}.loginProc Success! userId={}", this.getClass().getName(),
+                    authInfo.userInfoDTO().userId());
 
-        if (res == 1) {
-            msg = "로그인 성공했습니다.";
-            session.setAttribute("SS_EMAIL", email);
-        } else {
-            msg = "이메일과 비밀번호가 올바르지 않습니다";
+            return MsgDTO.builder().result(1).msg("로그인 성공했습니다.").build();
+
+        } catch (AuthenticationException e) {
+            log.warn("{}.loginProc Failed: {}", this.getClass().getName(), e.getMessage());
+            return MsgDTO.builder().result(0).msg("이메일과 비밀번호가 올바르지 않습니다").build();
         }
-
-        MsgDTO dto = MsgDTO.builder().result(res).msg(msg).build();
-        log.info("{}.loginProc End!", this.getClass().getName());
-
-        return dto;
     }
 
+    /**
+     * 토큰 유효성 확인 — JWT 가 유효하면 SecurityContextHolder 에서 클레임 추출
+     * 유효하지 않으면 oauth2ResourceServer 필터가 먼저 401 을 반환하므로
+     * 이 메서드에 도달했다면 항상 인증된 상태
+     */
     @ResponseBody
     @GetMapping("sessionCheck")
-    public UserInfoDTO sessionCheck(HttpSession session) {
+    public UserInfoDTO sessionCheck() {
 
         log.info("{}.sessionCheck Start!", this.getClass().getName());
 
-        String email = CmmUtil.nvl(
-                (String) session.getAttribute("SS_EMAIL")
-        );
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-        if (!email.isEmpty()) {
-            log.info("{}.sessionCheck Yes!", this.getClass().getName());
-
-            return UserInfoDTO.builder()
-                    .email(email)
+        if (auth instanceof JwtAuthenticationToken jwtAuth) {
+            Jwt jwt = jwtAuth.getToken();
+            UserInfoDTO rDTO = UserInfoDTO.builder()
+                    .userId(Integer.parseInt(jwt.getSubject()))
+                    .userName(jwt.getClaimAsString("username"))
                     .existYn("Y")
                     .build();
+            log.info("{}.sessionCheck Valid! userId={}", this.getClass().getName(), rDTO.userId());
+            return rDTO;
         }
 
-        log.info("{}.sessionCheck Null!", this.getClass().getName());
-
-        return UserInfoDTO.builder()
-                .existYn("N")
-                .build();
+        log.info("{}.sessionCheck Invalid!", this.getClass().getName());
+        return UserInfoDTO.builder().existYn("N").build();
     }
 
-    @ResponseBody
-    @PostMapping(value = "logout")
-    public MsgDTO logout(HttpSession session){
-
-        log.info("{}.logout Start!", this.getClass().getName());
-
-        session.setAttribute("SS_EMAIL", "");
-        session.removeAttribute("SS_EMAIL");
-
-        MsgDTO dto = MsgDTO.builder().result(1).msg("로그아웃하였습니다").build();
-
-        log.info("{}.logout End!", this.getClass().getName());
-
-        return dto;
-    }
+    // logout 은 SecurityConfig 의 Spring Security LogoutFilter 가 처리
+    // POST /api/user/logout → 쿠키 삭제 + JSON {"result":1,"msg":"로그아웃하였습니다"} 반환
 
     @ResponseBody
     @PostMapping(value = "searchUserEmail")

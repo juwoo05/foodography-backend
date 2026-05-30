@@ -22,8 +22,8 @@ public interface IAnalyzeService {
     /** 사용자 수정 결과 → FOOD_AFTER 저장 */
     int saveFoodAfterResult(AnalysisResultDTO pDTO) throws Exception;
 
-    /** FOOD_AFTER 컬렉션에서 특정 scanId의 식재료명 목록 조회 */
-    List<RecipeDTO> analyzeRecipes(String scanId) throws Exception;
+    /** FOOD_AFTER 컬렉션에서 userId + scanId 소유권 검증 후 식재료명 기반 레시피 분석 */
+    List<RecipeDTO> analyzeRecipes(String scanId, Integer userId) throws Exception;
 
     /**
      * 사용자가 레시피 선택 후 호출 — YouTube URL → Gemini 영상 분석 → 구조화된 조리 단계 목록

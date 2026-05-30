@@ -7,6 +7,8 @@ import kopo.poly.util.CmmUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,26 +33,41 @@ public class AnalyzeController {
      * FastAPI → Roboflow → 크롭 → 그리드 → Gemini VLM → 결과 반환
      */
     @PostMapping("/analyze")
-    public ResponseEntity<AnalysisResultDTO> analyzeImage(HttpServletRequest request) {
+    public ResponseEntity<AnalysisResultDTO> analyzeImage(
+            @AuthenticationPrincipal Jwt jwt,
+            HttpServletRequest request) {
 
         log.info("{}.analyzeImage Start!", this.getClass().getName());
 
+        Integer userId       = Integer.parseInt(jwt.getSubject());
         String savedFilename = CmmUtil.nvl(request.getParameter("filename"));
 
-        log.info("분석 요청 파일: {}", savedFilename);
+        log.info("분석 요청 | userId={} filename={}", userId, savedFilename);
 
         if (savedFilename.isEmpty()) {
             log.warn("filename 파라미터가 비어있음");
             return ResponseEntity.badRequest()
-                    .body(new AnalysisResultDTO(false, 0, null, "filename 파라미터가 필요합니다.", null));
+                    .body(AnalysisResultDTO.builder()
+                            .success(false)
+                            .errorMessage("filename 파라미터가 필요합니다.")
+                            .build());
         }
 
         AnalysisResultDTO rDTO = analyzeService.analyzeImage(savedFilename);
 
         if (rDTO != null && rDTO.success()) {
+            // userId 를 JWT 에서 강제 주입 — 클라이언트 전달값 신뢰 X
+            rDTO = AnalysisResultDTO.builder()
+                    .success(rDTO.success())
+                    .detectedCount(rDTO.detectedCount())
+                    .ingredients(rDTO.ingredients())
+                    .errorMessage(rDTO.errorMessage())
+                    .scanId(rDTO.scanId())
+                    .userId(userId)
+                    .build();
             try {
                 int saveRes = analyzeService.saveFoodResult(rDTO);
-                log.info("MongoDB 저장 완료 result={}", saveRes);
+                log.info("MongoDB 저장 완료 | userId={} result={}", userId, saveRes);
             } catch (Exception e) {
                 log.error("MongoDB 저장 실패: {}", e.getMessage(), e);
             }
@@ -68,13 +85,28 @@ public class AnalyzeController {
      * Spring → MongoDB FOOD_AFTER 컬렉션 저장
      */
     @PostMapping("/analyze/reviewed")
-    public ResponseEntity<MsgDTO> saveReviewedResult(@RequestBody AnalysisResultDTO pDTO) {
+    public ResponseEntity<MsgDTO> saveReviewedResult(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody AnalysisResultDTO pDTO) {
 
-        log.info("{}.saveAfterResult Start! scanId={}", this.getClass().getName(), pDTO.scanId());
+        // 클라이언트가 body 에 전달한 userId 는 무시 — JWT sub 로 강제 덮어씀
+        Integer userId = Integer.parseInt(jwt.getSubject());
+
+        log.info("{}.saveAfterResult Start! scanId={} userId={}", this.getClass().getName(), pDTO.scanId(), userId);
+
+        // userId 를 JWT 에서 주입한 DTO 로 재구성
+        AnalysisResultDTO verifiedDTO = AnalysisResultDTO.builder()
+                .success(pDTO.success())
+                .detectedCount(pDTO.detectedCount())
+                .ingredients(pDTO.ingredients())
+                .errorMessage(pDTO.errorMessage())
+                .scanId(pDTO.scanId())
+                .userId(userId)
+                .build();
 
         MsgDTO rDTO;
         try {
-            int res = analyzeService.saveFoodAfterResult(pDTO);
+            int res = analyzeService.saveFoodAfterResult(verifiedDTO);
             rDTO = new MsgDTO(res, "저장 완료");
         } catch (Exception e) {
             log.error("FOOD_AFTER 저장 실패: {}", e.getMessage(), e);
@@ -90,32 +122,32 @@ public class AnalyzeController {
      * 레시피 분석 요청
      *
      * React → POST /api/analyze/recipe?scanId=xxx
-     * Spring → FOOD_AFTER 식재료 조회 → FastAPI 레시피 분석 → RecipeListDTO 반환
+     * Spring → FOOD_AFTER 식재료 조회 → FastAPI 레시피 분석 → List<RecipeDTO> 반환
      */
     @PostMapping("/analyze/recipe")
-    public ResponseEntity<RecipeListDTO> analyzeRecipe(HttpServletRequest request) {
+    public ResponseEntity<List<RecipeDTO>> analyzeRecipe(
+            @AuthenticationPrincipal Jwt jwt,
+            HttpServletRequest request) {
 
-        log.info("{}.analyzeRecipe Start!", this.getClass().getName());
+        Integer userId = Integer.parseInt(jwt.getSubject());
+        String  scanId = CmmUtil.nvl(request.getParameter("scanId"));
 
-        String scanId = CmmUtil.nvl(request.getParameter("scanId"));
+        log.info("{}.analyzeRecipe Start! scanId={} userId={}", this.getClass().getName(), scanId, userId);
 
         if (scanId.isEmpty()) {
             log.warn("scanId 파라미터가 비어있음");
-            return ResponseEntity.badRequest()
-                    .body(RecipeListDTO.builder().recipes(List.of()).build());
+            return ResponseEntity.badRequest().body(Collections.emptyList());
         }
 
         try {
-            List<RecipeDTO> rList = analyzeService.analyzeRecipes(scanId);
+            // userId 검증 포함 — 타 사용자의 scanId 로 조회 시 빈 목록 반환
+            List<RecipeDTO> rList = analyzeService.analyzeRecipes(scanId, userId);
             log.info("{}.analyzeRecipe End! count={}", this.getClass().getName(), rList.size());
-            return ResponseEntity.ok(
-                    RecipeListDTO.builder().recipes(rList).build()
-            );
+            return ResponseEntity.ok(rList);
 
         } catch (Exception e) {
             log.error("레시피 분석 실패: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError()
-                    .body(RecipeListDTO.builder().recipes(List.of()).build());
+            return ResponseEntity.internalServerError().body(Collections.emptyList());
         }
     }
 
@@ -127,9 +159,12 @@ public class AnalyzeController {
      * FastAPI → Gemini 영상 직접 분석 → List<VideoSummaryDTO> 반환
      */
     @PostMapping("/analyze/recipe/video-summary")
-    public ResponseEntity<List<VideoSummaryDTO>> getVideoSummary(HttpServletRequest request) {
+    public ResponseEntity<List<VideoSummaryDTO>> getVideoSummary(
+            @AuthenticationPrincipal Jwt jwt,
+            HttpServletRequest request) {
 
-        log.info("{}.getVideoSummary Start!", this.getClass().getName());
+        Integer userId    = Integer.parseInt(jwt.getSubject());
+        log.info("{}.getVideoSummary Start! userId={}", this.getClass().getName(), userId);
 
         String youtubeUrl = CmmUtil.nvl(request.getParameter("youtube_url"));
         String scanId     = CmmUtil.nvl(request.getParameter("scanId"));

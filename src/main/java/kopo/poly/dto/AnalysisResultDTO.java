@@ -2,12 +2,14 @@ package kopo.poly.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Builder;
 import java.util.List;
 
 /**
  * FastAPI /api/v1/fridge/analyze 응답을 매핑하는 DTO
  * FastAPI → Spring Boot → React 순으로 그대로 전달
  */
+@Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record AnalysisResultDTO(
 
@@ -24,7 +26,10 @@ public record AnalysisResultDTO(
         String errorMessage,
 
         // FOOD_BEFORE / FOOD_AFTER 연결 키 (UUID, 분석 성공 시 서버에서 생성)
-        String scanId
+        String scanId,
+
+        // JWT sub 클레임에서 추출한 소유자 ID — 클라이언트 전달값 신뢰 X, 서버에서 주입
+        Integer userId
 
 ) {
 

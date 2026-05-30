@@ -14,5 +14,6 @@ public interface IMyFoodMapper {
      * @return {@code scanId} + {@code ingredients} 가 채워진 {@link FoodDbDTO}
      * @throws Exception MongoDB 조회 오류 시
      */
-    FoodDbDTO getLatestIngredients(String colNm) throws Exception;
+    /** 특정 userId 의 가장 최근 스캔 식재료 조회 — 타 사용자 데이터 격리 */
+    FoodDbDTO getLatestIngredients(String colNm, Integer userId) throws Exception;
 }

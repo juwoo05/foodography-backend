@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import kopo.poly.dto.FoodDbDTO;
 import org.springframework.cache.annotation.Cacheable;
-import kopo.poly.repository.IFoodNutritionRepository;
+import kopo.poly.repository.FoodNutritionRepository;
 import kopo.poly.repository.entity.FoodNutritionEntity;
 import kopo.poly.service.IMyFoodService;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +35,7 @@ public class MyFoodService implements IMyFoodService {
     private final ChatClient.Builder         chatClientBuilder;     // Spring AI — auto-configured
     private final WebClient                  webClient;             // 식품안전처 API 호출용
     private final ObjectMapper               objectMapper;          // Spring Boot auto-configured
-    private final IFoodNutritionRepository   foodNutritionRepo;     // MariaDB — 영양 데이터
+    private final FoodNutritionRepository foodNutritionRepo;     // MariaDB — 영양 데이터
 
     /** 요청마다 새로 빌드하지 않도록 서비스 초기화 시 1회 생성 */
     private ChatClient chatClient;

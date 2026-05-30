@@ -90,6 +90,20 @@ spring:
         content-field-name: document_content  # 공식 문서 기본값
         # api-key 는 application-secret.yml 에서 주입
 
+jwt:
+  token:
+    creator: Foodography
+    access:
+      valid:
+        time: 1800        # 30분 — Access Token 유효시간 (초)
+      name: jwtAccessToken
+    refresh:
+      valid:
+        time: 604800      # 7일 — Refresh Token 유효시간 (초)
+      name: jwtRefreshToken
+  secret:
+    key:                  # 실제 키는 application-secret.yml 에서만 주입
+
 # ── FastAPI 서버 주소 ────────────────────────────────────────────────────────
 fastapi:
   base-url: http://localhost:8000  # 로컬 기본값, 운영은 secret 에서 덮어씀
@@ -98,6 +112,14 @@ fastapi:
 food-safety:
   base-url: https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo02/getFoodNtrCpntDbInq02
   api-key: CHANGE_ME_IN_SECRET      # secret 에서 실제 키로 덮어씀
+
+# ── YouTube Data API v3 ────────────────────────────────────────────────────
+# Google Cloud Console → API 및 서비스 → YouTube Data API v3 활성화 후 키 발급
+# https://console.cloud.google.com/apis/credentials
+youtube:
+  data:
+    base-url: https://www.googleapis.com/youtube/v3
+    api-key: CHANGE_ME_IN_SECRET    # secret 에서 실제 키로 덮어씀
 
 # Enable cache/Redis logging to see hits and misses
 logging:

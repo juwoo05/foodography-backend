@@ -47,20 +47,21 @@ public class AnalysisResultMapper extends AbstractMongoDBComon implements IAnaly
     }
 
     @Override
-    public List<String> getFoodResult(String colNm, String scanId) throws Exception {
+    public List<String> getFoodResult(String colNm, String scanId, Integer userId) throws Exception {
 
-        log.info("{}.getFoodResult Start! colNm={} scanId={}", this.getClass().getName(), colNm, scanId);
+        log.info("{}.getFoodResult Start! colNm={} scanId={} userId={}", this.getClass().getName(), colNm, scanId, userId);
 
         MongoCollection<Document> col = mongodb.getCollection(colNm);
 
-        // 특정 scanId 도큐먼트의 ingredients.name distinct 조회
+        // scanId + userId 동시 필터 — 타인의 scanId 로 조회 불가
         List<String> rList = new ArrayList<>();
         col.distinct("ingredients.name", String.class)
                 .filter(new Document("scanId", scanId)
+                        .append("userId", userId)
                         .append("ingredients.name", new Document("$exists", true).append("$ne", null)))
                 .into(rList);
 
-        log.info("{}.getFoodResult End! scanId={} result count={}", this.getClass().getName(), scanId, rList.size());
+        log.info("{}.getFoodResult End! scanId={} userId={} count={}", this.getClass().getName(), scanId, userId, rList.size());
 
         return rList;
     }

@@ -1,7 +1,7 @@
 package kopo.poly.service.impl;
 
-import jakarta.servlet.http.HttpSession;
 import jakarta.transaction.Transactional;
+import kopo.poly.auth.AuthInfo;
 import kopo.poly.dto.MailDTO;
 import kopo.poly.dto.UserInfoDTO;
 import kopo.poly.repository.UserInfoRepository;
@@ -13,8 +13,12 @@ import kopo.poly.util.EncryptUtil;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -23,9 +27,46 @@ import java.util.concurrent.ThreadLocalRandom;
 @Service
 public class UserInfoService implements IUserInfoService {
 
-    private final UserInfoRepository userInfoRepository;
+    // Redis 인증코드 키 접두사 · TTL
+    private static final String AUTH_CODE_PREFIX  = "AUTH:EMAIL:";
+    private static final Duration AUTH_CODE_TTL   = Duration.ofMinutes(5);
 
+    private final UserInfoRepository userInfoRepository;
     private final IMailService mailService;
+    private final StringRedisTemplate stringRedisTemplate;
+
+    /**
+     * Spring Security 인증 진입점 — AuthenticationManager.authenticate() 가 내부 호출
+     *
+     * 파라미터 email : 컨트롤러에서 AES-128 암호화된 이메일을 전달
+     *   → DB 조회 키와 동일한 형태 (암호화 저장)
+     *
+     * JWT sub 클레임은 userId(Integer) 로 발급 — PII(이메일) 노출 방지
+     * jwt 검증은 JwtDecoder 가 처리 — 이 메서드는 로그인 시에만 호출됨
+     */
+    @Override
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+
+        log.info("{}.loadUserByUsername Start! email={}", this.getClass().getName(), email);
+
+        UserInfoEntity entity = userInfoRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("존재하지 않는 이메일: " + email));
+
+        // Entity 에 roles 컬럼 없음 → 기본값 ROLE_USER 부여
+        UserInfoDTO rDTO = UserInfoDTO.builder()
+                .userId(entity.getUserId())
+                .userName(entity.getUserName())
+                .phoneNum(entity.getPhoneNum())
+                .email(entity.getEmail())
+                .password(entity.getPassword())   // SHA-256 해시 — PasswordEncoder.matches() 비교용
+                .regDt(entity.getRegDt())
+                .roles("ROLE_USER")
+                .build();
+
+        log.info("{}.loadUserByUsername End! userId={}", this.getClass().getName(), entity.getUserId());
+
+        return new AuthInfo(rDTO);
+    }
 
     @Override
     public UserInfoDTO getUserEmailExists(@NonNull UserInfoDTO pDTO) throws Exception {
@@ -49,32 +90,48 @@ public class UserInfoService implements IUserInfoService {
     }
 
     @Override
-    public int sendEmailAuthCode(@NonNull UserInfoDTO pDTO,
-                                 HttpSession session) throws Exception {
+    public int sendEmailAuthCode(@NonNull UserInfoDTO pDTO) throws Exception {
         log.info("{}.sendEmailAuthCode Start!", this.getClass().getName());
 
-        int res = 0;
-        int authNumber = 0;
-        String email;
+        String email      = EncryptUtil.decAES128CBC(CmmUtil.nvl(pDTO.email()));
+        int    authNumber = ThreadLocalRandom.current().nextInt(100000, 1000000);
 
-        authNumber = ThreadLocalRandom.current().nextInt(100000, 1000000);
-        email = EncryptUtil.decAES128CBC(CmmUtil.nvl(pDTO.email()));
         log.info("authNumber : {}", authNumber);
 
-        MailDTO dto = MailDTO.builder()
+        MailDTO mailDTO = MailDTO.builder()
                 .title("이메일 중복 확인 인증번호 발송 메일")
                 .contents("인증번호 " + authNumber + " 입니다.")
                 .toMail(email)
                 .build();
 
-        res = mailService.doSendMail(dto);
+        int res = mailService.doSendMail(mailDTO);
 
-        session.setAttribute("AUTH_NUMBER", String.valueOf(authNumber));
-        session.setAttribute("AUTH_EMAIL", email);
+        if (res == 1) {
+            // HttpSession 대신 Redis TTL 5분 저장 — 서버 재시작·스케일아웃에도 안전
+            stringRedisTemplate.opsForValue()
+                    .set(AUTH_CODE_PREFIX + email, String.valueOf(authNumber), AUTH_CODE_TTL);
+            log.info("인증코드 Redis 저장 완료 | email={} | ttl={}m", email, AUTH_CODE_TTL.toMinutes());
+        }
 
         log.info("{}.sendEmailAuthCode End!", this.getClass().getName());
 
         return res;
+    }
+
+    @Override
+    public int verifyEmailCode(String email, String inputCode) {
+        log.info("{}.verifyEmailCode Start! email={}", this.getClass().getName(), email);
+
+        String savedCode = CmmUtil.nvl(stringRedisTemplate.opsForValue().get(AUTH_CODE_PREFIX + email));
+
+        if (!savedCode.isEmpty() && savedCode.equals(inputCode)) {
+            stringRedisTemplate.delete(AUTH_CODE_PREFIX + email); // 1회성 보장
+            log.info("인증 성공 | email={}", email);
+            return 1;
+        }
+
+        log.info("인증 실패 | email={} | savedCode존재={}", email, !savedCode.isEmpty());
+        return 0;
     }
 
     @Override

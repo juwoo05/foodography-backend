@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Component;
 
@@ -28,12 +29,12 @@ public class MyFoodMapper extends AbstractMongoDBComon implements IMyFoodMapper 
      * null·공백을 제거한 식재료명 목록을 {@link FoodDbDTO#ingredients()} 에 담습니다.</p>
      */
     @Override
-    public FoodDbDTO getLatestIngredients(String colNm) throws Exception {
+    public FoodDbDTO getLatestIngredients(String colNm, Integer userId) throws Exception {
 
-        log.info("{}.getLatestIngredients Start! colNm={}", this.getClass().getName(), colNm);
+        log.info("{}.getLatestIngredients Start! colNm={} userId={}", this.getClass().getName(), colNm, userId);
 
-        // _id 내림차순 → 가장 최근 삽입 도큐먼트 1건
-        Query query = new Query()
+        // userId 필터 + _id 내림차순 → 해당 사용자의 가장 최근 도큐먼트 1건
+        Query query = new Query(Criteria.where("userId").is(userId))
                 .with(Sort.by(Sort.Direction.DESC, "_id"))
                 .limit(1);
 
