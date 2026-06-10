@@ -27,10 +27,12 @@ public interface IAnalyzeService {
 
     /**
      * 사용자가 레시피 선택 후 호출 — YouTube URL → Gemini 영상 분석 → 구조화된 조리 단계 목록
+     * RECIPE 테이블에 USER_ID 와 영상 요약 단계를 함께 UPDATE
      *
      * @param youtubeUrl 분석할 YouTube 영상 URL
-     * @param scanId     현재 분석 세션 ID (로깅용)
+     * @param scanId     현재 분석 세션 ID
+     * @param userId     JWT Subject 에서 추출한 사용자 ID
      * @return 조리 단계 목록 (VideoSummaryDTO 리스트)
      */
-    List<VideoSummaryDTO> getVideoSummary(String youtubeUrl, String scanId) throws Exception;
+    List<VideoSummaryDTO> getVideoSummary(String youtubeUrl, String scanId, Integer userId) throws Exception;
 }

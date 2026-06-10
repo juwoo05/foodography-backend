@@ -113,6 +113,14 @@ food-safety:
   base-url: https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo02/getFoodNtrCpntDbInq02
   api-key: CHANGE_ME_IN_SECRET      # secret 에서 실제 키로 덮어씀
 
+# ── 네이버 쇼핑 검색 API ────────────────────────────────────────────────────
+# https://developers.naver.com/docs/serviceapi/search/shopping/shopping.md
+# client-id / client-secret 는 application-secret.yml 에서만 관리
+naver:
+  shopping:
+    client-id: CHANGE_ME_IN_SECRET
+    client-secret: CHANGE_ME_IN_SECRET
+
 # ── YouTube Data API v3 ────────────────────────────────────────────────────
 # Google Cloud Console → API 및 서비스 → YouTube Data API v3 활성화 후 키 발급
 # https://console.cloud.google.com/apis/credentials

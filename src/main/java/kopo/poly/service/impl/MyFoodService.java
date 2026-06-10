@@ -201,6 +201,106 @@ public class MyFoodService implements IMyFoodService {
         log.info("{}.indexFoodDatabase End! totalIndexed={}", this.getClass().getName(), indexed);
     }
 
+    // ── ①-B MariaDB 전용 인덱싱 ─────────────────────────────────────────────
+
+    @Override
+    public void indexFoodDatabaseMariaOnly() throws Exception {
+
+        log.info("{}.indexFoodDatabaseMariaOnly Start!", this.getClass().getName());
+
+        String encodedKey = URLEncoder.encode(foodSafetyApiKey, StandardCharsets.UTF_8);
+
+        int pageNo     = 1;
+        int totalCount = Integer.MAX_VALUE;
+        int indexed    = 0;
+
+        while ((long) (pageNo - 1) * PAGE_SIZE < totalCount) {
+
+            String apiUrl = String.format(
+                    "%s?serviceKey=%s&pageNo=%d&numOfRows=%d&type=json",
+                    foodSafetyBaseUrl, encodedKey, pageNo, PAGE_SIZE);
+
+            log.info("{}.indexFoodDatabaseMariaOnly API 호출 pageNo={}", this.getClass().getName(), pageNo);
+
+            Map<?, ?> responseMap;
+            try {
+                responseMap = webClient.get()
+                        .uri(URI.create(apiUrl))
+                        .retrieve()
+                        .bodyToMono(Map.class)
+                        .block();
+            } catch (Exception e) {
+                log.error("{}.indexFoodDatabaseMariaOnly API 호출 실패 pageNo={} | {}",
+                        this.getClass().getName(), pageNo, e.getMessage());
+                break;
+            }
+
+            if (responseMap == null || !responseMap.containsKey("body")) {
+                log.warn("{}.indexFoodDatabaseMariaOnly 응답 없음 pageNo={}", this.getClass().getName(), pageNo);
+                break;
+            }
+
+            Map<?, ?> header = (Map<?, ?>) responseMap.get("header");
+            if (header != null) {
+                String resultCode = header.get("resultCode") != null ? header.get("resultCode").toString() : "";
+                if (!"00".equals(resultCode)) {
+                    log.error("{}.indexFoodDatabaseMariaOnly API 오류 resultCode={}", this.getClass().getName(), resultCode);
+                    break;
+                }
+            }
+
+            Map<?, ?> body = (Map<?, ?>) responseMap.get("body");
+
+            if (pageNo == 1) {
+                Object totalObj = body.get("totalCount");
+                totalCount = (totalObj != null)
+                        ? Integer.parseInt(totalObj.toString().replaceAll(",", ""))
+                        : 0;
+                log.info("{}.indexFoodDatabaseMariaOnly 전체 건수={}", this.getClass().getName(), totalCount);
+            }
+
+            List<?> rows = extractItems(body);
+            if (rows.isEmpty()) {
+                log.info("{}.indexFoodDatabaseMariaOnly 더 이상 데이터 없음 pageNo={}", this.getClass().getName(), pageNo);
+                break;
+            }
+
+            // ── MariaDB 엔티티만 구성 (Pinecone Document 생략) ──
+            List<FoodNutritionEntity> entities = new ArrayList<>();
+
+            for (Object rowObj : rows) {
+                if (!(rowObj instanceof Map<?, ?> row)) continue;
+
+                String foodNm = nullSafe(row, "FOOD_NM_KR");
+                if (foodNm == null || foodNm.isBlank()) continue;
+
+                String foodCd = nullSafe(row, "FOOD_CD");
+                if (foodCd == null || foodCd.isBlank()) continue;
+
+                entities.add(FoodNutritionEntity.builder()
+                        .foodCd(foodCd)
+                        .foodNm(foodNm)
+                        .kcal(toDouble(row, "AMT_NUM1"))
+                        .protein(toDouble(row, "AMT_NUM3"))
+                        .fat(toDouble(row, "AMT_NUM4"))
+                        .carbs(toDouble(row, "AMT_NUM6"))
+                        .build());
+            }
+
+            if (!entities.isEmpty()) {
+                foodNutritionRepo.saveAll(entities);
+            }
+
+            indexed += entities.size();
+            pageNo++;
+
+            log.info("{}.indexFoodDatabaseMariaOnly 진행 indexed={} / total={}",
+                    this.getClass().getName(), indexed, totalCount);
+        }
+
+        log.info("{}.indexFoodDatabaseMariaOnly End! totalIndexed={}", this.getClass().getName(), indexed);
+    }
+
     // ── ② 유사도 검색 + Claude 매칭 (컨트롤러 호출) ─────────────────────────
 
     /**

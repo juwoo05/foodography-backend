@@ -32,6 +32,10 @@ public class RecipeEntity {
     @Column(name = "RECIPE_ID", updatable = false)
     private Integer recipeId;
 
+    /** FK → USER_INFO.USER_ID  (getVideoSummary 호출 시 채워짐 — 초기 INSERT 시 NULL 허용) */
+    @Column(name = "USER_ID")
+    private Integer userId;
+
     @NonNull
     @Column(name = "SCAN_ID", nullable = false, length = 36)
     private String scanId;
@@ -82,8 +86,9 @@ public class RecipeEntity {
             columnDefinition = "DATETIME DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime regDt;
 
-    /** 영상 요약 단계 업데이트 — setter 대신 목적 메서드 사용 */
-    public void updateVideoSummary(List<VideoSummaryDTO> steps) {
+    /** 영상 요약 단계 + 선택한 사용자 ID 업데이트 — setter 대신 목적 메서드 사용 */
+    public void updateVideoSummary(List<VideoSummaryDTO> steps, Integer userId) {
         this.recipeVideoSummary = steps;
+        this.userId             = userId;
     }
 }

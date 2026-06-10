@@ -124,9 +124,13 @@ task buildReact(type: Exec) {
     }
 }
 
-// 빌드된 정적 파일을 Spring Boot static 폴더로 복사
+// 빌드된 정적 파일을 Spring Boot static 폴더로 복사 (기존 파일 먼저 삭제)
 task copyReactBuildFiles(type: Copy) {
     dependsOn "buildReact"
     from "$frontendDir/dist"
     into "$projectDir/src/main/resources/static"
+
+    doFirst {
+        delete "$projectDir/src/main/resources/static"
+    }
 }

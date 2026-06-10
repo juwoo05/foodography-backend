@@ -210,8 +210,29 @@ public class UserInfoController {
         return UserInfoDTO.builder().existYn("N").build();
     }
 
+    /**
+     * POST /api/user/refresh
+     * Refresh Token 으로 Access Token + Refresh Token 재발급 (Rotation)
+     *
+     * AT 만료 후 클라이언트가 자동 호출 — permitAll 이므로 만료된 AT 없이도 접근 가능
+     * RT 검증은 JwtTokenService 에서 처리 (서명 + Redis 화이트리스트 비교)
+     */
+    @ResponseBody
+    @PostMapping("refresh")
+    public MsgDTO refresh(HttpServletRequest request, HttpServletResponse response) {
+        log.info("{}.refresh Start!", this.getClass().getName());
+        try {
+            jwtTokenService.refreshTokens(request, response);
+            log.info("{}.refresh Success!", this.getClass().getName());
+            return MsgDTO.builder().result(1).msg("토큰이 갱신되었습니다.").build();
+        } catch (Exception e) {
+            log.warn("{}.refresh Failed: {}", this.getClass().getName(), e.getMessage());
+            return MsgDTO.builder().result(0).msg(e.getMessage()).build();
+        }
+    }
+
     // logout 은 SecurityConfig 의 Spring Security LogoutFilter 가 처리
-    // POST /api/user/logout → 쿠키 삭제 + JSON {"result":1,"msg":"로그아웃하였습니다"} 반환
+    // POST /api/user/logout → AT 블랙리스트 + RT 삭제 + 쿠키 만료 + JSON 반환
 
     @ResponseBody
     @PostMapping(value = "searchUserEmail")

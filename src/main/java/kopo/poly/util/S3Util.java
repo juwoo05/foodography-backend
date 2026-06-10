@@ -24,7 +24,7 @@ public class S3Util {
     }
 
     /**
-     * S3에 저장될 고유 파일명 생성
+     * 냉장고 이미지 S3 저장 파일명 생성
      */
     public String createSavedFilename(String originalFilename) {
         String extension = "";
@@ -32,6 +32,24 @@ public class S3Util {
             extension = originalFilename.substring(originalFilename.lastIndexOf("."));
         }
         return "fridge-images/" + UUID.randomUUID() + extension;
+    }
+
+    /**
+     * 리뷰 이미지 S3 저장 파일명 생성 (review-images/ 경로 → 퍼블릭 읽기 허용)
+     */
+    public String createReviewImageFilename(String originalFilename) {
+        String extension = "";
+        if (originalFilename != null && originalFilename.contains(".")) {
+            extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+        }
+        return "review-images/" + UUID.randomUUID() + extension;
+    }
+
+    /**
+     * 리뷰 이미지 퍼블릭 URL 생성 (Presigned 불필요 — 버킷 정책으로 공개)
+     */
+    public String getPublicUrl(String savedFilename) {
+        return "https://" + bucket + ".s3.ap-northeast-2.amazonaws.com/" + savedFilename;
     }
 
     /**

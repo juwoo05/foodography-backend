@@ -175,7 +175,7 @@ public class AnalyzeController {
         }
 
         try {
-            List<VideoSummaryDTO> rList = analyzeService.getVideoSummary(youtubeUrl, scanId);
+            List<VideoSummaryDTO> rList = analyzeService.getVideoSummary(youtubeUrl, scanId, userId);
 
             log.info("{}.getVideoSummary End! scanId={} steps={}", this.getClass().getName(), scanId, rList.size());
             for (int i = 0; i < rList.size(); i++) {

@@ -242,9 +242,9 @@ public class AnalyzeService implements IAnalyzeService {
     }
 
     @Override
-    public List<VideoSummaryDTO> getVideoSummary(String youtubeUrl, String scanId) throws Exception {
+    public List<VideoSummaryDTO> getVideoSummary(String youtubeUrl, String scanId, Integer userId) throws Exception {
 
-        log.info("{}.getVideoSummary Start! scanId={} youtubeUrl={}", this.getClass().getName(), scanId, youtubeUrl);
+        log.info("{}.getVideoSummary Start! scanId={} userId={} youtubeUrl={}", this.getClass().getName(), scanId, userId, youtubeUrl);
 
         Map<String, String> requestBody = Map.of(
                 "youtube_url", youtubeUrl,
@@ -276,13 +276,14 @@ public class AnalyzeService implements IAnalyzeService {
 
         List<VideoSummaryDTO> result = steps != null ? steps : List.of();
 
-        // ── MariaDB UPDATE: 영상 요약 단계 저장 ──────────────────────────────
+        // ── MariaDB UPDATE: 영상 요약 단계 + USER_ID 저장 ───────────────────
         if (!result.isEmpty()) {
             recipeRepository.findByScanIdAndYoutubeUrl(scanId, youtubeUrl)
                     .ifPresentOrElse(entity -> {
-                        entity.updateVideoSummary(result);
+                        entity.updateVideoSummary(result, userId);
                         recipeRepository.save(entity);
-                        log.info("영상 요약 MariaDB UPDATE 완료 | scanId={} steps={}", scanId, result.size());
+                        log.info("영상 요약 + userId MariaDB UPDATE 완료 | scanId={} userId={} steps={}",
+                                scanId, userId, result.size());
                     }, () -> log.warn("영상 요약 저장 대상 레시피 없음 | scanId={} youtubeUrl={}", scanId, youtubeUrl));
         }
 

@@ -66,9 +66,7 @@ public class MyFoodController {
     }
 
     /**
-     * 식품 DB 수동 인덱싱 (개발·운영 검증용)
-     *
-     * <p>스케줄러 자동 실행 외에 즉시 인덱싱이 필요할 때 사용합니다.</p>
+     * 식품 DB 수동 인덱싱 — Pinecone + MariaDB 동시 저장 (개발·운영 검증용)
      * POST /api/food/index
      */
     @PostMapping("/index")
@@ -79,10 +77,31 @@ public class MyFoodController {
         try {
             myFoodService.indexFoodDatabase();
             log.info("{}.indexFoodDatabase End!", this.getClass().getName());
-            return ResponseEntity.ok(new MsgDTO(1, "식품 DB 인덱싱 완료"));
+            return ResponseEntity.ok(new MsgDTO(1, "식품 DB 인덱싱 완료 (Pinecone + MariaDB)"));
 
         } catch (Exception e) {
             log.error("{}.indexFoodDatabase 오류 | {}", this.getClass().getName(), e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                    .body(new MsgDTO(0, "인덱싱 실패: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 식품 DB 인덱싱 — MariaDB(FOOD_NUTRITION) 만 저장 (Pinecone 건드리지 않음)
+     * POST /api/food/index-maria
+     */
+    @PostMapping("/index-maria")
+    public ResponseEntity<MsgDTO> indexFoodDatabaseMariaOnly() {
+
+        log.info("{}.indexFoodDatabaseMariaOnly Start!", this.getClass().getName());
+
+        try {
+            myFoodService.indexFoodDatabaseMariaOnly();
+            log.info("{}.indexFoodDatabaseMariaOnly End!", this.getClass().getName());
+            return ResponseEntity.ok(new MsgDTO(1, "식품 DB 인덱싱 완료 (MariaDB 전용)"));
+
+        } catch (Exception e) {
+            log.error("{}.indexFoodDatabaseMariaOnly 오류 | {}", this.getClass().getName(), e.getMessage(), e);
             return ResponseEntity.internalServerError()
                     .body(new MsgDTO(0, "인덱싱 실패: " + e.getMessage()));
         }
