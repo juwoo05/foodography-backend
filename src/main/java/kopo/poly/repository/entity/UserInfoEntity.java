@@ -31,6 +31,9 @@ public class UserInfoEntity {
     @Column(name = "PHONE_NUM", nullable = false, length = 20)
     private String phoneNum;
 
+    @Column(name = "ADDRESS", length = 255)
+    private String address;
+
     @NonNull
     @Column(name = "EMAIL", nullable = false, unique = true, length = 100)
     private String email;
@@ -47,5 +50,9 @@ public class UserInfoEntity {
             throw new IllegalArgumentException("비밀번호는 빈 값일 수 없습니다.");
         }
         this.password = newPassword;
+    }
+
+    public void updateAddress(String newAddress) {
+        this.address = newAddress;
     }
 }

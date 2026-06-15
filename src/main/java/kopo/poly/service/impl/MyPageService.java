@@ -73,6 +73,7 @@ public class MyPageService implements IMyPageService {
                 .userName   (user.getUserName())
                 .email      (email)               // 복호화된 이메일
                 .phoneNum   (user.getPhoneNum())
+                .address    (user.getAddress())
                 .regDt      (user.getRegDt())
                 .recipeCount(recipeCount)
                 .reviewCount(reviewCount)

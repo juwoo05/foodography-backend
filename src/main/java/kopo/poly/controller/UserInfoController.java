@@ -108,14 +108,16 @@ public class UserInfoController {
         String email = CmmUtil.nvl(request.getParameter("email"));
         String phoneNum = CmmUtil.nvl(request.getParameter("phoneNum"));
         String password = CmmUtil.nvl(request.getParameter("password"));
+        String address = CmmUtil.nvl(request.getParameter("address"));
 
-        log.info("userName : {}, email : {}, phoneNum : {}, password : {}",
-                userName, email, phoneNum, password);
+        log.info("userName : {}, email : {}, phoneNum : {}, address : {}",
+                userName, email, phoneNum, address);
 
         UserInfoDTO pDTO = UserInfoDTO.builder()
                 .userName(userName)
                 .email(EncryptUtil.encAES128CBC(email))
                 .phoneNum(phoneNum)
+                .address(address.isBlank() ? null : address)
                 .password(EncryptUtil.encHashSHA256(password))
                 .build();
 
@@ -188,10 +190,10 @@ public class UserInfoController {
      * 이 메서드에 도달했다면 항상 인증된 상태
      */
     @ResponseBody
-    @GetMapping("sessionCheck")
-    public UserInfoDTO sessionCheck() {
+    @GetMapping("token/verify")
+    public UserInfoDTO verifyToken() {
 
-        log.info("{}.sessionCheck Start!", this.getClass().getName());
+        log.info("{}.verifyToken Start!", this.getClass().getName());
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
@@ -202,11 +204,11 @@ public class UserInfoController {
                     .userName(jwt.getClaimAsString("username"))
                     .existYn("Y")
                     .build();
-            log.info("{}.sessionCheck Valid! userId={}", this.getClass().getName(), rDTO.userId());
+            log.info("{}.verifyToken Valid! userId={}", this.getClass().getName(), rDTO.userId());
             return rDTO;
         }
 
-        log.info("{}.sessionCheck Invalid!", this.getClass().getName());
+        log.info("{}.verifyToken Invalid!", this.getClass().getName());
         return UserInfoDTO.builder().existYn("N").build();
     }
 
@@ -229,6 +231,34 @@ public class UserInfoController {
             log.warn("{}.refresh Failed: {}", this.getClass().getName(), e.getMessage());
             return MsgDTO.builder().result(0).msg(e.getMessage()).build();
         }
+    }
+
+    @ResponseBody
+    @PostMapping("updateAddress")
+    public MsgDTO updateAddress(HttpServletRequest request) throws Exception {
+
+        log.info("{}.updateAddress Start!", this.getClass().getName());
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (!(auth instanceof JwtAuthenticationToken jwtAuth)) {
+            return MsgDTO.builder().result(0).msg("인증이 필요합니다.").build();
+        }
+
+        int userId = Integer.parseInt(jwtAuth.getToken().getSubject());
+        String address = CmmUtil.nvl(request.getParameter("address"));
+
+        UserInfoDTO pDTO = UserInfoDTO.builder()
+                .userId(userId)
+                .address(address.isBlank() ? null : address)
+                .build();
+
+        int res = userInfoService.updateAddress(pDTO);
+
+        String msg = (res == 1) ? "주소가 변경되었습니다." : "오류로 인해 주소 변경에 실패했습니다.";
+
+        log.info("{}.updateAddress End! res={}", this.getClass().getName(), res);
+
+        return MsgDTO.builder().result(res).msg(msg).build();
     }
 
     // logout 은 SecurityConfig 의 Spring Security LogoutFilter 가 처리

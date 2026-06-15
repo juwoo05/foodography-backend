@@ -277,14 +277,19 @@ public class AnalyzeService implements IAnalyzeService {
         List<VideoSummaryDTO> result = steps != null ? steps : List.of();
 
         // ── MariaDB UPDATE: 영상 요약 단계 + USER_ID 저장 ───────────────────
+        // DB 저장 실패가 클라이언트 응답을 막지 않도록 try-catch 로 격리
         if (!result.isEmpty()) {
-            recipeRepository.findByScanIdAndYoutubeUrl(scanId, youtubeUrl)
-                    .ifPresentOrElse(entity -> {
-                        entity.updateVideoSummary(result, userId);
-                        recipeRepository.save(entity);
-                        log.info("영상 요약 + userId MariaDB UPDATE 완료 | scanId={} userId={} steps={}",
-                                scanId, userId, result.size());
-                    }, () -> log.warn("영상 요약 저장 대상 레시피 없음 | scanId={} youtubeUrl={}", scanId, youtubeUrl));
+            try {
+                recipeRepository.findByScanIdAndYoutubeUrl(scanId, youtubeUrl)
+                        .ifPresentOrElse(entity -> {
+                            entity.updateVideoSummary(result, userId);
+                            recipeRepository.save(entity);
+                            log.info("영상 요약 + userId MariaDB UPDATE 완료 | scanId={} userId={} steps={}",
+                                    scanId, userId, result.size());
+                        }, () -> log.warn("영상 요약 저장 대상 레시피 없음 | scanId={} youtubeUrl={}", scanId, youtubeUrl));
+            } catch (Exception e) {
+                log.error("영상 요약 MariaDB 저장 실패 (결과는 정상 반환) | scanId={} error={}", scanId, e.getMessage());
+            }
         }
 
         log.info("{}.getVideoSummary End! scanId={} steps={}", this.getClass().getName(), scanId, result.size());

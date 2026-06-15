@@ -26,6 +26,8 @@ public record UserInfoDTO(
         @Size(min = 10, max = 20, message = "전화번호는 10자 이상 20자 이하로 입력해주세요.")
         String phoneNum,
 
+        String address,
+
         @NotBlank(message = "이메일은 필수입니다.")
         @Size(max = 100, message = "이메일은 100자 이하로 입력해주세요.")
         @Email(message = "이메일 형식이 올바르지 않습니다.")
@@ -56,6 +58,7 @@ public record UserInfoDTO(
         return UserInfoDTO.builder()
                 .userName(pDTO.userName())
                 .phoneNum(pDTO.phoneNum())
+                .address(pDTO.address())
                 .email(pDTO.email())
                 .password(password)
                 .roles(roles)
@@ -70,6 +73,7 @@ public record UserInfoDTO(
         return UserInfoEntity.builder()
                 .userName(dto.userName())
                 .phoneNum(dto.phoneNum())
+                .address(dto.address())
                 .email(dto.email())
                 .password(dto.password())
                 .build();
@@ -84,6 +88,7 @@ public record UserInfoDTO(
                 .userId(entity.getUserId())
                 .userName(entity.getUserName())
                 .phoneNum(entity.getPhoneNum())
+                .address(entity.getAddress())
                 .email(entity.getEmail())
                 .password(entity.getPassword())
                 .regDt(entity.getRegDt())

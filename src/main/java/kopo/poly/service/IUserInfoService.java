@@ -26,4 +26,6 @@ public interface IUserInfoService extends UserDetailsService {
     int insertUserInfo(UserInfoDTO pDTO) throws Exception;
 
     int getUserLogin(UserInfoDTO pDTO) throws Exception;
+
+    int updateAddress(UserInfoDTO pDTO) throws Exception;
 }

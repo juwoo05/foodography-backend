@@ -159,6 +159,7 @@ public class UserInfoService implements IUserInfoService {
             UserInfoEntity pEntity = UserInfoEntity.builder()
                     .userName(userName)
                     .phoneNum(phoneNum)
+                    .address(CmmUtil.nvl(pDTO.address()).isBlank() ? null : pDTO.address())
                     .email(email)
                     .password(password)
                     .build();
@@ -220,6 +221,25 @@ public class UserInfoService implements IUserInfoService {
         log.info("{}.searchUserEmail End!", this.getClass().getName());
 
         return rDTO;
+    }
+
+    @Override
+    @Transactional
+    public int updateAddress(@NonNull UserInfoDTO pDTO) throws Exception {
+
+        log.info("{}.updateAddress Start! userId={}", this.getClass().getName(), pDTO.userId());
+
+        Optional<UserInfoEntity> rEntity = userInfoRepository.findById(pDTO.userId());
+
+        if (rEntity.isEmpty()) {
+            log.warn("updateAddress: 존재하지 않는 userId={}", pDTO.userId());
+            return 0;
+        }
+
+        rEntity.get().updateAddress(pDTO.address());
+
+        log.info("{}.updateAddress End! userId={}", this.getClass().getName(), pDTO.userId());
+        return 1;
     }
 
     @Override
