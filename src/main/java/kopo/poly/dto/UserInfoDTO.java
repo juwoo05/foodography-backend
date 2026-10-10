@@ -81,7 +81,6 @@ public record UserInfoDTO(
 
     /**
      * UserInfoEntity → UserInfoDTO 변환 (서비스 반환용)
-     * roles 는 Entity 에 없으므로 별도로 세팅 필요 시 toBuilder() 활용
      */
     public static UserInfoDTO from(UserInfoEntity entity) {
         return UserInfoDTO.builder()
@@ -92,6 +91,7 @@ public record UserInfoDTO(
                 .email(entity.getEmail())
                 .password(entity.getPassword())
                 .regDt(entity.getRegDt())
+                .roles(entity.getRoles())
                 .build();
     }
 }

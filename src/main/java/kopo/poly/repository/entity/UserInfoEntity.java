@@ -45,6 +45,10 @@ public class UserInfoEntity {
     @Column(name = "REG_DT", updatable = false, columnDefinition = "DATETIME DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime regDt;
 
+    /** 권한 (콤마 구분, 예: "ROLE_USER,ROLE_ADMIN") — null 이면 DB 기본값 ROLE_USER (@DynamicInsert) */
+    @Column(name = "ROLES", nullable = false, length = 100)
+    private String roles;
+
     public void updatePassword(String newPassword) {
         if (newPassword == null || newPassword.isBlank()) {
             throw new IllegalArgumentException("비밀번호는 빈 값일 수 없습니다.");

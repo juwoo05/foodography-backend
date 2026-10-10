@@ -129,6 +129,28 @@ youtube:
     base-url: https://www.googleapis.com/youtube/v3
     api-key: CHANGE_ME_IN_SECRET    # secret 에서 실제 키로 덮어씀
 
+# ── 기상청 단기예보 조회서비스 (초단기실황) ──────────────────────────────────
+# 공공데이터포털 → 기상청_단기예보 조회서비스 활용신청 → 일반 인증키(Decoding)
+# https://www.data.go.kr/data/15084084/openapi.do
+kma:
+  ultra-srt-ncst:
+    base-url: https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst
+    api-key: CHANGE_ME_IN_SECRET    # secret 에서 실제 키로 덮어씀 (Decoding 키)
+
+# ── 한국천문연구원 특일 정보 (공휴일·잡절·24절기·기념일) ──────────────────────
+# 공공데이터포털 → 한국천문연구원_특일 정보 활용신청 (자동승인) — 기상청과 같은 개인 인증키 사용
+# https://www.data.go.kr/data/15012690/openapi.do
+kasi:
+  spcde:
+    base-url: https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService
+    api-key: ${kma.ultra-srt-ncst.api-key}
+
+# ── 농사로 이달의 음식 API ──────────────────────────────────────────────────
+# 농사로 → 소통/공유 → 공공데이터 → 공공데이터 신청 → "이달의 음식"
+nongsaro:
+  base-url: http://api.nongsaro.go.kr/service/monthFd
+  api-key: CHANGE_ME_IN_SECRET      # secret 에서 실제 키로 덮어씀
+
 # Enable cache/Redis logging to see hits and misses
 logging:
   level:

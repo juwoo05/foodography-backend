@@ -52,7 +52,7 @@ public class UserInfoService implements IUserInfoService {
         UserInfoEntity entity = userInfoRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("존재하지 않는 이메일: " + email));
 
-        // Entity 에 roles 컬럼 없음 → 기본값 ROLE_USER 부여
+        // ROLES 컬럼 값 그대로 JWT roles 클레임으로 전달 (비어 있으면 JwtTokenService 가 ROLE_USER 처리)
         UserInfoDTO rDTO = UserInfoDTO.builder()
                 .userId(entity.getUserId())
                 .userName(entity.getUserName())
@@ -60,7 +60,7 @@ public class UserInfoService implements IUserInfoService {
                 .email(entity.getEmail())
                 .password(entity.getPassword())   // SHA-256 해시 — PasswordEncoder.matches() 비교용
                 .regDt(entity.getRegDt())
-                .roles("ROLE_USER")
+                .roles(entity.getRoles())
                 .build();
 
         log.info("{}.loadUserByUsername End! userId={}", this.getClass().getName(), entity.getUserId());

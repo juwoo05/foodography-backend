@@ -199,9 +199,12 @@ public class UserInfoController {
 
         if (auth instanceof JwtAuthenticationToken jwtAuth) {
             Jwt jwt = jwtAuth.getToken();
+            // roles 클레임(List) → "ROLE_USER,ROLE_ADMIN" — 클라이언트 관리자 UI 노출 판단용
+            var roleList = jwt.getClaimAsStringList("roles");
             UserInfoDTO rDTO = UserInfoDTO.builder()
                     .userId(Integer.parseInt(jwt.getSubject()))
                     .userName(jwt.getClaimAsString("username"))
+                    .roles(roleList == null ? "ROLE_USER" : String.join(",", roleList))
                     .existYn("Y")
                     .build();
             log.info("{}.verifyToken Valid! userId={}", this.getClass().getName(), rDTO.userId());
